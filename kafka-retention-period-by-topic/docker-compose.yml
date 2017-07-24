@@ -1,0 +1,102 @@
+# TODO to README.md or Runner, build sbt images first.
+---
+version: '2.1'
+services:
+  # Service to start all full stack
+  target:
+    image: busybox
+    depends_on:
+      # Set only one create-topics-retention-mayor or  create-topics-retention-minor
+      # And stars only with up target.
+      create-topics-retention-mayor:
+        condition: service_started
+    command: echo -n ""
+
+  create-topics-retention-minor:
+    image: cyberluisda/kafka-ctrl
+    depends_on:
+      kafka:
+        condition: service_healthy
+    # retention period to 30 secs (minor that default in kafka)
+    command: create-topic -s -p 2 -c retention.ms=30000 source_json -p 1 -c cleanup.policy=compact connect-offset connect-config connect-status
+
+  create-topics-retention-mayor:
+    image: cyberluisda/kafka-ctrl
+    environment:
+      KAFKA_BROKER_LIST: kafka-ret:9092
+    depends_on:
+      kafka-ret:
+        condition: service_healthy
+    # retention period 1hour (60 * 60 * 1000 = 3600000) greather than defaulut in kafka-ret
+    command: create-topic -s -p 2 source_def -c retention.ms=3600000 source_mayor -p 1 -c cleanup.policy=compact connect-offset connect-config connect-status
+
+  # ~~~~~~~~~~~~~~~~
+  # end2end services
+  # ~~~~~~~~~~~~~~~~
+
+  zookeeper:
+    image: wurstmeister/zookeeper
+    environment:
+      JMXPORT: 7072
+    ports:
+      - 7075:7072
+
+  kafka:
+    image: openshine/kafka:0.10.2.0
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ADVERTISED_HOST_NAME: kafka
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_PORT: 9092
+      KAFKA_MESSAGE_MAX_BYTES: 20971520
+      KAFKA_REPLICA_FETCH_MAX_BYTES: 20971520
+      KAFKA_DELETE_TOPIC_ENABLE: "true"
+      JMX_PORT: 7072
+    depends_on:
+      zookeeper:
+        condition: service_started
+    healthcheck:
+      test: "netstat -plnt | fgrep ':9092'"
+    ports:
+      - 7072:7072
+
+  kafka-ret:
+    image: openshine/kafka:0.10.2.0
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ADVERTISED_HOST_NAME: kafka-ret
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_PORT: 9092
+      KAFKA_MESSAGE_MAX_BYTES: 20971520
+      KAFKA_REPLICA_FETCH_MAX_BYTES: 20971520
+      KAFKA_DELETE_TOPIC_ENABLE: "true"
+      # Retention period 30 secs
+      KAFKA_LOG_RETENTION_MS: 30000
+      JMX_PORT: 7072
+    depends_on:
+      zookeeper:
+        condition: service_started
+    healthcheck:
+      test: "netstat -plnt | fgrep ':9092'"
+    ports:
+      - 7072:7072
+
+  # ~~~~~~~~~~~~~~~
+  # HELPER services
+  # ~~~~~~~~~~~~~~~
+
+  kafka-ctl:
+    image: cyberluisda/kafka-ctrl
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  kafka-ctl-ret:
+    image: cyberluisda/kafka-ctrl
+    environment:
+      KAFKA_BROKER_LIST: kafka-ret:9092
+    depends_on:
+      kafka-ret:
+        condition: service_healthy
+  curl:
+    image: appropriate/curl
