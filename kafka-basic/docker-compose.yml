@@ -1,0 +1,57 @@
+# TODO to README.md or Runner, build sbt images first.
+---
+version: '2.1'
+services:
+  # Service to start all full stack
+  target:
+    image: busybox
+    depends_on:
+      create-topics:
+        condition: service_started
+    command: echo -n ""
+
+  create-topics:
+    image: cyberluisda/kafka-ctrl
+    depends_on:
+      kafka:
+        condition: service_healthy
+    # retention period to 30 secs (minor that default in kafka)
+    command: create-topic -s -p 2 source_json
+
+  # ~~~~~~~~~~~~~~~~
+  # end2end services
+  # ~~~~~~~~~~~~~~~~
+
+  zookeeper:
+    image: wurstmeister/zookeeper
+    environment:
+      JMXPORT: 7072
+    ports:
+      - 7075:7072
+
+  kafka:
+    image: openshine/kafka:0.11.0.0
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ADVERTISED_HOST_NAME: kafka
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_PORT: 9092
+      KAFKA_DELETE_TOPIC_ENABLE: "true"
+    depends_on:
+      zookeeper:
+        condition: service_started
+    healthcheck:
+      test: "netstat -plnt | fgrep ':9092'"
+
+  # ~~~~~~~~~~~~~~~
+  # HELPER services
+  # ~~~~~~~~~~~~~~~
+
+  kafka-ctl:
+    image: cyberluisda/kafka-ctrl:0.11.0.0
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  curl:
+    image: appropriate/curl
