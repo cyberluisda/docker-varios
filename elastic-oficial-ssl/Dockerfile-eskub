@@ -1,0 +1,13 @@
+FROM cyberluisda/elasticsearch-kubernetes:5.6.2-xpack
+MAINTAINER Luis David Barrios (luis.david.barrios@outlook.com)
+
+# SSl configurationADD files/certificates /usr/share/config/
+ADD files/certificates /elasticsearch/config/certificates/
+RUN  echo 'xpack.ssl.key: /elasticsearch/config/certificates/node.key' >> /elasticsearch/config/elasticsearch.yml \
+  && echo 'xpack.ssl.certificate: /elasticsearch/config/certificates/node.crt' >> /elasticsearch/config/elasticsearch.yml \
+  && echo 'xpack.ssl.certificate_authorities: [ "/elasticsearch/config/certificates/ca.crt" ]' >> /elasticsearch/config/elasticsearch.yml \
+  && echo 'xpack.security.http.ssl.enabled: true' >> /elasticsearch/config/elasticsearch.yml \
+  && echo 'xpack.security.transport.ssl.enabled: true' >> /elasticsearch/config/elasticsearch.yml
+
+# Prepare for only one node
+#ENV discovery.type single-node
