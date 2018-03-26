@@ -1,0 +1,59 @@
+---
+version: '3'
+services:
+  # Service to start all full stack
+  target:
+    image: busybox
+    depends_on:
+    - create-topics
+    command: echo -n ""
+
+  create-topics:
+    image: cyberluisda/kafka-ctrl
+    depends_on:
+    - kafka
+    environment:
+      WAIT_FOR_SERVICE_UP: "tcp://kafka:9092 tcp://zookeeper:2181"
+    command: create-topic -s -p 2 source_json
+
+  # ~~~~~~~~~~~~~~~~
+  # end2end services
+  # ~~~~~~~~~~~~~~~~
+
+  ksql-cli:
+    image: confluentinc/ksql-cli:0.5
+    depends_on:
+    - kafka
+    environment:
+      STREAMS_BOOTSTRAP_SERVERS: kafka:9092
+    command: "ksql-cli local --bootstrap-server kafka:9092"
+
+  kafka:
+    image: openshine/kafka:0.11.0.0
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ADVERTISED_HOST_NAME: kafka
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_PORT: 9092
+      KAFKA_DELETE_TOPIC_ENABLE: "true"
+    depends_on:
+    - zookeeper
+    healthcheck:
+      test: "netstat -plnt | fgrep ':9092'"
+
+  zookeeper:
+    image: wurstmeister/zookeeper
+    ports:
+      - 7075:7072
+
+  # ~~~~~~~~~~~~~~~
+  # HELPER services
+  # ~~~~~~~~~~~~~~~
+
+  kafka-ctl:
+    image: cyberluisda/kafka-ctrl
+    depends_on:
+    - kafka
+
+  curl:
+    image: appropriate/curl
