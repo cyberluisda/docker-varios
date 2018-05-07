@@ -37,6 +37,13 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_ADVERTISED_PORT: 9092
       KAFKA_DELETE_TOPIC_ENABLE: "true"
+      # 5 mins for tests
+      KAFKA_LOG_RETENTION_MS: 300000
+      KAFKA_LOG_CLEANER_DELETE_RETENTION_MS: 1000
+      KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 30000
+      # # Default retention by size (10 Gb)
+      # KAFKA_LOG_RETENTION_BYTES: 10737418240
+      KAFKA_LOG_CLEANUP_POLICY: delete
     depends_on:
       zookeeper:
         condition: service_started
@@ -49,6 +56,8 @@ services:
 
   kafka-ctl:
     image: cyberluisda/kafka-ctrl:0.11.0.0
+    environment:
+      WAIT_FOR_SERVICE_UP: "tcp://kafka:9092 tcp://zookeeper:2181"
     depends_on:
       kafka:
         condition: service_healthy
